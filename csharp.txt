@@ -1,0 +1,293 @@
+installation
+------------
+* in vs code
+ext install ms-dotnettools.csharp
+
+* in bash
+sudo apt install apt-transport-https
+wget https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+rm packages-microsoft-prod.deb
+sudo apt-get update
+sudo apt-get install -y dotnet-sdk-6.0
+
+* new project (with Something as name of directory)
+dotnet new console Something -o
+
+* new console but with old syntax (best option)
+dotnet new console -o book5 --use-program-main true
+
+* run a project
+dotnet run 
+
+api
+---
+1. dotnet new webapi -f net6.0
+2. generate build of assets (vs studio)
+3. dotnet run 
+4. https://localhost:7105/weatherforecast
+5. dotnet add package Newtonsoft.Json
+6. dotnet add package Npgsql --version 7.0.0
+
+api with scafford and secrets
+-----------------------------
+1. dotnet new webapi -f net6.0 -o api2
+2. dotnet build
+3. dotnet add package Newtonsoft.Json
+4. dotnet add package Npgsql.EntityFrameworkCore.PostgreSQL
+5. dotnet add package Microsoft.EntityFrameworkCore.Design
+6. dotnet user-secrets init
+7. dotnet user-secrets set ConnectionStrings:RecordStore "Host=localhost;Username=my_user;Password=root;Database=record_store"
+8. dotnet ef dbcontext scaffold Name=ConnectionStrings:RecordStore  Npgsql.EntityFrameworkCore.PostgreSQL
+
+
+api with framework core and postgres
+------------------------------------
+1. dotnet add package Microsoft.EntityFrameworkCore.Design
+2. dotnet ef dbcontext scaffold "Host=localhost;Username=my_user;Password=root;Database=record_store" Npgsql.EntityFrameworkCore.PostgreSQL
+
+book
+----
+page 124
+
+* static void Main is invoked before the function will run
+* a method void doesn't return anything. need to specify what type of return if function return ssomething
+* to access a method within the same function, need to instanstiate it first:
+	Program poop = new Program();
+        string shite = poop.Main2();
+* a nested code block cannot access variables in the upper block
+* editing a *.csproj file changes the imports in the *.GlobalUsing.g.cs file
+* avoiding special character escaping (verbatim string)
+	string filePath = @"C:\televisions\sony\bravia.txt";
+* can use underscores in numbers:
+	int decimalNotation = 2_000_000;
+* use float more than double, since double can be innaccurate
+* cannot compare different numerical types
+* can instantiate with c# 10 as:
+	Person shit = new();
+        shit.Birthdate = new(1987, 2, 3);
+* each data type has a default value:
+	int number = 13;
+	number = default;
+* can initialize string this way too:
+	string[] names2 = new[] { "Kate", "Jack", "Rebecca", "Tom" };
+* can simplify class methods like such:
+	using static System.Console;
+	WriteLine("blah");
+* can submit arguments to main method from command line (only string[] is accepted):
+	dotnet run console "hello" "yo"
+* Can parse from string:
+	DateTime.Parse("4 July 1980");
+* don't need to put exception in the catch(), just leave out the braces
+checks for arithmetic overflow
+* having the word checked or unchecked followed by code block checks for arithmetic overflow
+* can attach comments to functions by placing this above the method. check off -> View | Command Palette | Preferences: Open Settings (UI), and then search for
+formatOnType and make sure that is enabled
+
+/// <summary>
+/// Pass a 32-bit integer and it will be converted into its ordinal
+equivalent.
+/// </summary>
+/// <param name="number">Number is a cardinal value e.g. 1, 2, 3, and so
+on.</param>
+/// <returns>Number as an ordinal value e.g. 1st, 2nd, 3rd, and so on.
+</returns>
+
+* need to build assets before debug in linux. debug is done via f5
+* can write to a logging file by:
+	using System.Diagnostics;
+	using System.Reflection;
+	using System.Text.RegularExpressions;	
+
+	in method:
+	    Regex regex = new Regex("bin");
+            string path = System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+            string origin = regex.Split(path)[0];
+            WriteLine(origin);
+            Trace.Listeners.Add(new TextWriterTraceListener(
+                File.CreateText(Path.Combine(Environment.GetFolderPath(
+                Environment.SpecialFolder.DesktopDirectory), origin + "log.txt"))));
+
+            Trace.AutoFlush = true;
+            Debug.WriteLine("Debug says, I am watching!");
+            Trace.WriteLine("Trace says, I am watching!");	
+
+* can have multiple .cs files in one project folder. whichever one has the main method will execute
+* enums are used to limit the range of class fields
+* readonly is a constant defined at runtime. const is used to create a constant at compile time. readonly field value can be changed after declaration. const field value cannot be changed after declaration.
+* to ininitiate values, follow this pattern:
+public partial class Cunt
+    {
+        public string Name;
+        public readonly DateTime Instantiated;
+        public Cunt()
+        {
+
+            Name = "Unknown";
+            Instantiated = DateTime.Now;
+        }
+
+    };
+* a deconstruction method is only meant for deconstructing nothing else
+* a method that takes parameters as out or ref needs the variable to have a default value in the method, while ref does not
+* a class property with the init property means that property cannot be changed after instanced
+* a delegate is a way to refer to functions via shorthand
+* hashtable could be used in lieu of classes, but can be slow. index can be any type. 
+* IComparable is only applicable with strings§
+* set culture in app like so:
+ var culture = new CultureInfo("fi-FI");
+            CultureInfo.DefaultThreadCurrentCulture = culture;
+            CultureInfo.DefaultThreadCurrentUICulture = culture;
+* collections (list, dictionary, queues) should be type cast as IENumerable generic
+void ProcessCollection<T>(IEnumerable<T> collection)
+{
+}
+* main point of spans is to same memory indexing
+* convert a file to binary then clone it 
+	string path = "/home/koji/Documents/servicelevels.png";
+	byte[] bytes = File.ReadAllBytes(path);
+	var something = new BitArray(bytes);
+	WriteLine(something.Count);
+
+	Stream stream = new FileStream("/home/koji/Documents/shit.png", FileMode.Create);
+	BinaryWriter bw = new BinaryWriter(stream);
+
+
+	foreach (var b in bytes)
+	{
+	     bw.Write(b);
+	}
+	bw.Flush();
+	bw.Close();
+* serialize json with this library:
+1. add to project
+	<ItemGroup>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+	</ItemGroup>
+2. run build
+3. insert into scrip 
+
+	using Newtonsoft.Json;
+
+	string path = GetCurrentDirectory() + "/something.json";
+	using (StreamReader r = new StreamReader(path))
+	{
+	    string json = r.ReadToEnd();
+	    List<Fuck> items = JsonConvert.DeserializeObject<List<Fuck>>(json)!;
+	}
+* convert to and from json string
+	using Newtonsoft.Json;
+	List<Fuck> people = new() { new() { userId = 1, title = "fuck off", id = 1, completed = false }, };
+	string json = JsonConvert.SerializeObject(people);
+	List<Fuck> hey = JsonConvert.DeserializeObject<List<Fuck>>(json)!;
+* can add package in terminal: dotnet add package Microsoft.EntityFrameworkCore.Sqlite
+* sqlite3 -> .open /home/koji/.local/share/blogging.db -> .schema
+* can enforce sql requirments when bootstrapping db like so: 
+	[Required]
+	[StringLength(40)]
+	public string ProductName { get; set; }
+
+* northwind file
+	.open /home/koji/Desktop/csharp/Northwind.db
+
+* add json deserializer:
+	dotnet add package Newtonsoft.Json
+
+* http requests:
+	using System.Net.Http.Headers;
+
+	 static async Task Main()
+        {
+
+            await Something();
+
+        }
+
+        static async Task Something()
+        {
+            using HttpClient client = new();
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            client.DefaultRequestHeaders.Add("User-Agent", ".NET Foundation Repository Reporter");
+            string content = await client.GetStringAsync("https://jsonplaceholder.typicode.com/todos/");
+            WriteLine(content);
+        }
+
+
+building class library
+----------------------
+url : https://tinyurl.com/mwasb85r
+
+1. create a solution file in root folder: dotnet new sln
+2. create a class library folder and files: dotnet new classlib -o StringLibrary
+3. add project to the sln file: dotnet sln add StringLibrary/StringLibrary.csproj
+4. build the created script: dotnet build
+5. create an entry point program: dotnet new console -o ShowCase
+6. add that to the solution: dotnet sln add ShowCase/ShowCase.csproj
+7. add a reference to the file: dotnet add ShowCase/ShowCase.csproj reference StringLibrary/StringLibrary.csproj
+8. run the entry file: dotnet run --project ShowCase/ShowCase.csproj
+
+building class library just classes, no methods (shared)
+-------------------------------------------------------
+1. make a new class as usual: dotnet new classlib -o Test
+2. Declare the new class with the .shared flag. i.e. public class Shared.Shared
+3. refer from the program back to the classlib folder via:
+	<Project> 
+	...
+		<ItemGroup>
+	    		<ProjectReference Include="../Shared/Shared.csproj" />
+		</ItemGroup>
+	</Project>
+4. can access the class by using Shared.Shared;
+
+use existing db:
+----------------
+sqlite3 RecordStore.db
+
+CREATE TABLE Artist(
+artist_id integer primary key AUTOINCREMENT,
+name text);
+
+CREATE TABLE Album(
+album_id integer primary key AUTOINCREMENT,
+artist_id integer,
+title text,
+release_date text,
+cost decimal(2,2),
+FOREIGN KEY (artist_id) REFERENCES artist(artist_id));
+
+CREATE TABLE Invoice(
+invoice_id integer primary key autoincrement,
+email text,
+Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE InvoiceItems(
+album_id integer,
+invoice_id integer,
+amount integer,
+primary key(album_id,invoice_id),
+foreign key (album_id) references Album(album_id),
+foreign key (invoice_id) references Invoice(invoice_id));
+
+
+insert into artist (name) 
+values ("dissection");
+
+insert into album(artist_id,title,release_date,cost) 
+values (1,"storm of the lights bane","1996-10-22",12.90);
+
+insert into album(artist_id,title,release_date,cost) 
+values (1,"the somberlain","1994-03-12",10.20);
+
+insert into Invoice(email) values ("koji.gabriel218@gmail.com");
+
+insert into invoiceitems(album_id,invoice_id,amount)
+values (1,1,1);
+
+select * from artist join album on artist.artist_id = album.artist_id;
+
+select * from Invoice join InvoiceItems on Invoice.invoice_id = InvoiceItems.invoice_id;
+
+.open /home/koji/Desktop/csharp/RecordStore.db
+
+.output /home/koji/Desktop/csharp/ch7/RecordStore/RecordStoreBackUp.db
