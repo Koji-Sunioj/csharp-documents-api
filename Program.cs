@@ -1,5 +1,5 @@
 using database;
-
+using System.Text.Json;
 using Microsoft.Extensions.FileProviders;
 using static System.Console;
 
@@ -33,7 +33,14 @@ class Program
         {
             FileProvider = new PhysicalFileProvider($"{Directory.GetCurrentDirectory()}/documents"),
             RequestPath = "/documents",
-        });      
+        });
+
+        string settings = "./Properties/launchSettings.json";
+        var json = File.ReadAllText(settings); 
+        Dictionary<string, object> mydictionary = new Dictionary<string, object>();      
+        mydictionary = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
+        /* var shit = JsonSerializer.Deserialize<dynamic>(json); */
+        WriteLine(mydictionary["profiles"].http);
 
         app.UseAuthorization();
 
