@@ -11,6 +11,7 @@ class Program
 
         DataBase database = new DataBase();
         database.LoadEnv();
+        database.LoadHost();
 
         var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,7 @@ class Program
         builder.Services.AddEndpointsApiExplorer();
      
         var app = builder.Build();
+        
 
         app.UseDefaultFiles();
         app.UseStaticFiles();  
@@ -29,24 +31,19 @@ class Program
             RequestPath = "/documents",
         });
 
-        app.UseDirectoryBrowser(new DirectoryBrowserOptions
+        /*  app.UseDirectoryBrowser(new DirectoryBrowserOptions
         {
             FileProvider = new PhysicalFileProvider($"{Directory.GetCurrentDirectory()}/documents"),
             RequestPath = "/documents",
-        });
-
-        string settings = "./Properties/launchSettings.json";
-        var json = File.ReadAllText(settings); 
-        Dictionary<string, object> mydictionary = new Dictionary<string, object>();      
-        mydictionary = JsonSerializer.Deserialize<Dictionary<string, object>>(json);
-        /* var shit = JsonSerializer.Deserialize<dynamic>(json); */
-        WriteLine(mydictionary["profiles"].http);
+        });*/
 
         app.UseAuthorization();
 
         app.MapControllers();
 
         app.Run();
+
+        
 
    }
 }

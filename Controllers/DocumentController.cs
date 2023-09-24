@@ -27,7 +27,6 @@ public class DocumentController : Controller //Controller
             message = "api is workings",
 
         }); 
-        
         return json;
     }
 
@@ -35,19 +34,17 @@ public class DocumentController : Controller //Controller
     [HttpGet("files")]
     public string GetFiles()
     {
-        string host = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}";
-        List<DbFile> files = database.GetDBFiles(host);
+        List<DbFile> files = database.GetDBFiles();
         Dictionary<string,List<DbFile>> response = new Dictionary<string,List<DbFile>>();
         response["files"] = files;
         string returnObject = JsonConvert.SerializeObject(response);
         return returnObject;
     }
 
-    [HttpGet("files/{fileName}")]
-    public dynamic GetFile(int fileName)
+    [HttpGet("files/{fileId}")]
+    public dynamic GetFile(int fileId)
     {
-        string host = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}";
-        DbFile file = database.GetDBFile(fileName,host);
+        DbFile file = database.GetDBFile(fileId);
         dynamic response = null;
         switch(Request.Query["type"])
         {
@@ -57,10 +54,10 @@ public class DocumentController : Controller //Controller
                 response = JsonConvert.SerializeObject(responseObject);
                 break;
             case "content":
+                string path = $"{Directory.GetCurrentDirectory()}/documents/{file.Name}";
                 string contentType;
-                new FileExtensionContentTypeProvider().TryGetContentType(file.Path, out contentType);
-
-                Stream fileStream  = new System.IO.FileStream(file.Path, FileMode.Open);
+                new FileExtensionContentTypeProvider().TryGetContentType(path, out contentType);
+                Stream fileStream  = new System.IO.FileStream(path, FileMode.Open);
                 response = File(fileStream, contentType);
                 break;
 
@@ -72,10 +69,6 @@ public class DocumentController : Controller //Controller
     public string SaveFiles()
     { 
         
-        
-        
-        
-       /*  response["file"] = file; */
         string json = JsonConvert.SerializeObject(new
         {
             message = "api is workings",
