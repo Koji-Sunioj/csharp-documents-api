@@ -14,7 +14,7 @@ namespace DocumentApi.Controllers;
 
 [ApiController]
 [Route("[controller]")]
-public class DocumentController : Controller //Controller
+public class DocumentController : Controller 
 {
 
     DataBase database = new DataBase();
@@ -29,6 +29,7 @@ public class DocumentController : Controller //Controller
         Dictionary<string,List<DbFile>> response = new Dictionary<string,List<DbFile>>();
         response["files"] = files;
         string returnObject = JsonConvert.SerializeObject(response);
+        
         return returnObject;
     }
 
@@ -40,68 +41,89 @@ public class DocumentController : Controller //Controller
         DbFile file = database.GetDBFile(fileId,jwtPayload["user"],jwtPayload["role"]);
         dynamic response = null;
         if (file == null) {
-            Dictionary<string,string> something = new Dictionary<string,string>();
-            something["message"] = "invalid creds";
-            response =something;
+            Dictionary<string,string> rejection = new Dictionary<string,string>();
+            rejection["message"] = "invalid creds";
+            response = rejection;
         }
         else {
             Dictionary<string, DbFile> responseObject = new Dictionary<string,DbFile>();
             responseObject["file"] = file;
             response = JsonConvert.SerializeObject(responseObject);
         }
+
         return response;
     }
 
     [HttpGet("files/{fileName}/content")]
-    public dynamic GetFileContent(string fileName)
+    public dynamic GetFileContent([FromHeader] Header header,string fileName)
     {
-        string path = $"{Directory.GetCurrentDirectory()}/documents/{fileName}";
-        string contentType;
-        new FileExtensionContentTypeProvider().TryGetContentType(path, out contentType);
-        Stream fileStream  = new System.IO.FileStream(path, FileMode.Open);
-        FileStreamResult response = File(fileStream, contentType);
+
+        string token = header.Authorization.Split(" ")[1].Trim();
+        dynamic response = null;
+        Dictionary<string,string> jwtPayload = Utils.CheckToken(DataBase.SignKey,DataBase.Host,token);
+        bool releaseFile = jwtPayload["role"] == "user" ? 
+            database.CanAccessFile(jwtPayload["user"],fileName) : true;
+     
+        if (releaseFile) {
+            string path = $"{Directory.GetCurrentDirectory()}/documents/{fileName}";
+            string contentType;
+            new FileExtensionContentTypeProvider().TryGetContentType(path, out contentType);
+            Stream fileStream  = new System.IO.FileStream(path, FileMode.Open);
+            response = File(fileStream, contentType);
+        }
+        
+        else {
+            Dictionary<string,string> rejection = new Dictionary<string,string>();
+            rejection["message"] = "you are not authorized to view this file" ;
+            response = rejection;
+        }
+
         return response;
     }
 
 
     [HttpPost("files")]
-    public async Task<string> SaveFile()
+    [Consumes("multipart/form-data")]
+    public async Task<string> SaveFile([FromHeader] Header header)
     { 
         string message = "";
+        IFormFileCollection files = Request.Form.Files;
+        string[] fileTypes = files.Select(file=>file.ContentType).ToArray();
+        bool isOnlyPdf = fileTypes.All(file => file.Contains("pdf"));
+        string fileCommand = isOnlyPdf && files.Count() == 1 ? "save" : "reject";
 
-        if (Request.ContentType.Contains("multipart/form-data"))
-        {
-            IFormFileCollection files = Request.Form.Files;
-            string[] fileTypes = files.Select(file=>file.ContentType).ToArray();
-            bool isOnlyPdf = fileTypes.All(file => file.Contains("pdf"));
-            string fileCommand = isOnlyPdf && files.Count() == 1 ? "save" : "reject";
-
-            switch(fileCommand){
-                case "save":
-                    string rootDir = $"{Directory.GetCurrentDirectory()}/documents";
-                    string[] currentDocs = Directory.GetFiles(rootDir);
-                    IFormFile targetFile = files[0];
-                    bool fileExists = currentDocs.Any(file=>file.Contains(targetFile.FileName));
+        switch(fileCommand) {
+            case "save":
+                IFormFile targetFile = files[0];
+                string rootDir = $"{Directory.GetCurrentDirectory()}/documents";
+                string[] currentDocs = Directory.GetFiles(rootDir);
+                bool fileExists = currentDocs.Any(file=>file.Contains(targetFile.FileName));
+                string token = header.Authorization.Split(" ")[1].Trim();
+                Dictionary<string,string> jwtPayload = Utils.CheckToken(DataBase.SignKey,DataBase.Host,token);
+                bool shouldSave = jwtPayload["role"] == "user" ? 
+                    database.CanAccessFile(jwtPayload["user"],targetFile.FileName) || !fileExists : true;
+                if (shouldSave) {
                     FileStream fileStream  = System.IO.File.Create($"{rootDir}/{targetFile.FileName}");
                     targetFile.CopyTo(fileStream);
                     fileStream.Dispose();
-                    if (!fileExists)
-                    {
-                        bool created = database.CreateDBFile(targetFile.FileName);
+                    if (!fileExists) {
+                        database.CreateDBFile(targetFile.FileName,jwtPayload["user"]);
                     }
                     message = $"file {targetFile.FileName} created";
-                    break;
-                case "reject":
-                    message = "can only accept pdfs, one file at a time";
-                    break;
-            }
-        }
-        else
-        {
-             message = "can only accept multipart";
+                }
+
+                else {
+                    message = "no authorization to modify existing file";
+                }
+                break;
+            case "reject":
+                message = "can only accept pdfs, one file at a time";
+                break;
         }
         
+        
         string json = JsonConvert.SerializeObject(new{ message = message}); 
+        
         return json;
     }
 }

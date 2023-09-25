@@ -85,43 +85,68 @@ class DataBase {
         return files;
     } 
 
+    public bool CanAccessFile(string userName,string fileName) {
+        DataBase.Connection.Open();
+        bool sameUser = false;
+        string command = $"select users.name from users join files on files.owner = users.user_id where files.name='{fileName}';";
+        SqlCommand select = new SqlCommand(command,DataBase.Connection);
+        SqlDataReader reader;
+        reader = select.ExecuteReader();
+        if (reader.HasRows) {
+            while (reader.Read()) {
+                WriteLine(reader.GetString(0));
+                sameUser=reader.GetString(0) == userName;
+            }
+        }
+        DataBase.Connection.Close();
+        return sameUser;
+
+    }
+
     public DbFile GetDBFile(int fileId,string userName,string role){
         DataBase.Connection.Open();
         string command = $"select files.file_id,files.name,files.created from files";
         string endCommand = role == "admin" ? 
              $"{command} where files.file_id={fileId};" : $"{command} join users on users.user_id = files.owner where files.file_id={fileId} and users.name='{userName}';";
-      
-        SqlCommand tableScan = new SqlCommand(endCommand,DataBase.Connection);
+        SqlCommand select = new SqlCommand(endCommand,DataBase.Connection);
         SqlDataReader reader;
-        reader = tableScan.ExecuteReader();
+        reader = select.ExecuteReader();
         DbFile file = new DbFile();
        
         if (reader.HasRows){
-            while (reader.Read())
-            {
+            while (reader.Read()) {
                 file.Id=reader.GetInt16(0);
                 file.Name=reader.GetString(1);
                 file.Created=reader.GetDateTime(2);
                 file.Path=EncodeURL(reader.GetString(1));
             }
-        
         }
         
-        else 
-        {
+        else {
             file = null;
         }
-       
         DataBase.Connection.Close();
         return file;
     }
 
-    public bool CreateDBFile(string fileName){
+    public void CreateDBFile(string fileName, string userName) {
+        int userId = 0;
         DataBase.Connection.Open();
-        SqlCommand insertCommand = new SqlCommand($"insert into files (name) values ('{fileName}');",DataBase.Connection);
-        int rowsCommitted = insertCommand.ExecuteNonQuery();
+        string getUserId = $"select users.user_id from users where users.name='{userName}'";
+        SqlCommand selectUserId = new SqlCommand(getUserId,DataBase.Connection);
+        SqlDataReader reader;
+        reader = selectUserId.ExecuteReader();
+        while (reader.Read()) {
+             userId = reader.GetInt16(0);
+        }
         DataBase.Connection.Close();
-        return rowsCommitted ==1;
+        if (userId > 0) {
+            DataBase.Connection.Open();
+            string command = $"insert into files (name,owner) values ('{fileName}',{userId});";
+            SqlCommand insertCommand = new SqlCommand(command,DataBase.Connection);
+            insertCommand.ExecuteNonQuery();
+        }
+        DataBase.Connection.Close();
     }
 
     public bool CreateDBUser(string userName,string password){
@@ -142,8 +167,7 @@ class DataBase {
         SqlCommand selectUser = new SqlCommand($"select password,role from users where name='{userName}';",DataBase.Connection);
         SqlDataReader reader;
         reader = selectUser.ExecuteReader();
-        while (reader.Read())
-        {
+        while (reader.Read()) {
              role = BC.Verify(password,reader.GetString(0)) ? reader.GetString(1) : role;
         }
         DataBase.Connection.Close();
