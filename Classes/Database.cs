@@ -1,5 +1,6 @@
 using dbfiles;
-
+using users;
+using BC = BCrypt.Net.BCrypt;
 using System;
 using System.Web;
 using System.IO;
@@ -12,10 +13,11 @@ using static System.Console;
 
 namespace database;
 
-class DataBase{
+class DataBase {
 
     public static SqlConnection Connection {get;set;}
     public static string Host{get;set;}
+    public static string SignKey {get;set;}
 
     public void LoadEnv(){
         string[] fileEntries = Directory.GetFiles(Directory.GetCurrentDirectory());
@@ -31,7 +33,7 @@ class DataBase{
             envFiles[key] = value;
         }
         
-        string[] parameters = {"Host","Password","Database","User"};
+        string[] parameters = {"Host","Password","Database","User","Key"};
         if (parameters.All(parameter => envFiles.ContainsKey(parameter)))
         {
             string connectionString = 
@@ -39,7 +41,13 @@ class DataBase{
                 $"User ID={envFiles["User"]};Password={envFiles["Password"]}";
             WriteLine(connectionString);
             DataBase.Connection = new SqlConnection(connectionString); 
+            DataBase.SignKey = envFiles["Key"];
         }
+    }
+
+    public string EncodeURL(string fileName){
+        string path = $"{DataBase.Host}/Document/files/{HttpUtility.UrlPathEncode(fileName)}/content";
+        return path;
     }
 
     public void LoadHost(){
@@ -54,38 +62,56 @@ class DataBase{
         string regexPattern = @"http://localhost:[0-9]+";
         Regex regex = new Regex(regexPattern);
         Match match = regex.Match(value);
-        DataBase.Host = value.Substring(match.Index,match.Length).Trim();    
+        DataBase.Host = value.Substring(match.Index,match.Length).Trim();  
     }
 
-    public List<DbFile> GetDBFiles(){
+    public List<DbFile> GetDBFiles(string userName,string role){
         DataBase.Connection.Open();
-        SqlCommand tableScan = new SqlCommand($"select file_id,name,created from files;",DataBase.Connection);
+        string command = "select files.file_id,files.name,files.created from files";
+        string endCommand = role == "admin" ? 
+            $"{command};" : $"{command} join users on users.user_id = files.owner where users.name='{userName}';";
+ 
+        SqlCommand tableScan = new SqlCommand(endCommand,DataBase.Connection);
         SqlDataReader reader;
         reader = tableScan.ExecuteReader();
         List<DbFile> files = new List<DbFile>();
         while (reader.Read())
         {
             DbFile file = new DbFile(){Id=reader.GetInt16(0),Name=reader.GetString(1),Created=reader.GetDateTime(2),
-            Path=$"{DataBase.Host}/Document/files/{reader.GetInt16(0)}?type=content"};
+            Path=EncodeURL(reader.GetString(1))};
             files.Add(file);
         }
         DataBase.Connection.Close();
         return files;
     } 
 
-    public DbFile GetDBFile(int fileId){
+    public DbFile GetDBFile(int fileId,string userName,string role){
         DataBase.Connection.Open();
-        SqlCommand tableScan = new SqlCommand($"select file_id,name,created from files where file_id={fileId};",DataBase.Connection);
+        string command = $"select files.file_id,files.name,files.created from files";
+        string endCommand = role == "admin" ? 
+             $"{command} where files.file_id={fileId};" : $"{command} join users on users.user_id = files.owner where files.file_id={fileId} and users.name='{userName}';";
+      
+        SqlCommand tableScan = new SqlCommand(endCommand,DataBase.Connection);
         SqlDataReader reader;
         reader = tableScan.ExecuteReader();
         DbFile file = new DbFile();
-        while (reader.Read())
-        {
-            file.Id=reader.GetInt16(0);
-            file.Name=reader.GetString(1);
-            file.Created=reader.GetDateTime(2);
-            file.Path=$"{DataBase.Host}/Document/files/{reader.GetInt16(0)}?type=content";
+       
+        if (reader.HasRows){
+            while (reader.Read())
+            {
+                file.Id=reader.GetInt16(0);
+                file.Name=reader.GetString(1);
+                file.Created=reader.GetDateTime(2);
+                file.Path=EncodeURL(reader.GetString(1));
+            }
+        
         }
+        
+        else 
+        {
+            file = null;
+        }
+       
         DataBase.Connection.Close();
         return file;
     }
@@ -96,5 +122,31 @@ class DataBase{
         int rowsCommitted = insertCommand.ExecuteNonQuery();
         DataBase.Connection.Close();
         return rowsCommitted ==1;
+    }
+
+    public bool CreateDBUser(string userName,string password){
+        string pwHash =  BC.HashPassword(password);
+        string command = "insert into users (name,role,password) values ('{0}','{1}','{2}')";
+        string role = userName == "koji" ? "admin" : "user";
+        DataBase.Connection.Open();
+        SqlCommand insertCommand = new SqlCommand(String.Format(command,userName,role,pwHash),DataBase.Connection);
+        int rowsCommitted = insertCommand.ExecuteNonQuery();
+        DataBase.Connection.Close();
+        return rowsCommitted ==1;
+    }
+
+    public string VerifyDBUser(string userName,string password){
+        User user = new User();
+        string role = "non-user";
+        DataBase.Connection.Open();
+        SqlCommand selectUser = new SqlCommand($"select password,role from users where name='{userName}';",DataBase.Connection);
+        SqlDataReader reader;
+        reader = selectUser.ExecuteReader();
+        while (reader.Read())
+        {
+             role = BC.Verify(password,reader.GetString(0)) ? reader.GetString(1) : role;
+        }
+        DataBase.Connection.Close();
+        return role;
     }
 }
