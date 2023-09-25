@@ -89,4 +89,12 @@ class DataBase{
         DataBase.Connection.Close();
         return file;
     }
+
+    public bool CreateDBFile(string fileName){
+        DataBase.Connection.Open();
+        SqlCommand insertCommand = new SqlCommand($"insert into files (name) values ('{fileName}');",DataBase.Connection);
+        int rowsCommitted = insertCommand.ExecuteNonQuery();
+        DataBase.Connection.Close();
+        return rowsCommitted ==1;
+    }
 }
