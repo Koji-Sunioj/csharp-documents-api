@@ -21,7 +21,7 @@ public class DocumentController : Controller
 
  
     [HttpGet("files")]
-    public string GetFiles([FromHeader] Header header)
+    public IActionResult GetFiles([FromHeader] Header header)
     {
         string token = header.Authorization.Split(" ")[1].Trim();
         Dictionary<string,string> jwtPayload = Utils.CheckToken(DataBase.SignKey,DataBase.Host,token);
@@ -29,8 +29,7 @@ public class DocumentController : Controller
         Dictionary<string,List<DbFile>> response = new Dictionary<string,List<DbFile>>();
         response["files"] = files;
         string returnObject = JsonConvert.SerializeObject(response);
-        
-        return returnObject;
+        return Ok(returnObject);
     }
 
     [HttpGet("files/{fileId}/metadata")]
@@ -39,19 +38,15 @@ public class DocumentController : Controller
         string token = header.Authorization.Split(" ")[1].Trim();
         Dictionary<string,string> jwtPayload = Utils.CheckToken(DataBase.SignKey,DataBase.Host,token);
         DbFile file = database.GetDBFile(fileId,jwtPayload["user"],jwtPayload["role"]);
-        dynamic response = null;
         if (file == null) {
-            Dictionary<string,string> rejection = new Dictionary<string,string>();
-            rejection["message"] = "invalid creds";
-            response = rejection;
+            return StatusCode(401);
         }
         else {
-            Dictionary<string, DbFile> responseObject = new Dictionary<string,DbFile>();
-            responseObject["file"] = file;
-            response = JsonConvert.SerializeObject(responseObject);
+            Dictionary<string, DbFile> response = new Dictionary<string,DbFile>();
+            response["file"] = file;
+            string responseObject = JsonConvert.SerializeObject(response);
+            return Ok(responseObject);
         }
-
-        return response;
     }
 
     [HttpGet("files/{fileName}/content")]

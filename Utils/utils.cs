@@ -1,11 +1,17 @@
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace utils;
 
 public static class Utils {
+
+    public class Header{
+        [FromHeader]
+        public  string Authorization { get; set; }
+    }
 
     public static string CreateToken(string signKey,string userName,string role,string host) {
 
@@ -29,6 +35,7 @@ public static class Utils {
 
     public static Dictionary<string,string> CheckToken(string signKey,string host,string token){
        
+        
         Dictionary<string,string> jwtPayload = new Dictionary<string,string>();
         System.Byte[] signingKeyBytes = Encoding.UTF8.GetBytes(signKey);
         JwtSecurityTokenHandler tokenHandler = new JwtSecurityTokenHandler();
